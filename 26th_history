@@ -1,0 +1,419 @@
+```
+==============================================================
+   
+   ad hoc way :
+       https://docs.ansible.com/ansible/latest/reference_appendices/special_variables.html#term-ansible_host
+       
+       
+       clear
+   92  ansible all -m ping
+   93  clear
+   94  ls
+   95  pwd
+   96  vi /etc/ansible/ansible.cfg 
+   97  cat /etc/ansible/hosts 
+   98  clear
+   99  vi /etc/ansible/hosts 
+   
+   
+   
+       [demo]
+m1 ansible_host=172.31.25.29
+m2 ansible_host=172.31.24.46
+
+
+  100  ansible demo --list-hosts
+  101  ansible all --list-hosts
+  102  ansible demo[0:5] --list-hosts
+  103  ansible demo[0] --list-hosts
+  104  ansible demo[-1] --list-hosts
+  105  ansible demo[-5] --list-hosts
+  106  ansible demo[-1: -5] --list-hosts
+  107  ansible demo[-1:-5] --list-hosts
+  108  ansible all -a
+  109  clear
+  110  ansible demo -a  "ls"
+  111  ansible demo[0] -a  "ls"
+  112  ansible demo[0] -a  "ls -ltr"
+  113  ansible demo[0] -a  "ls -ltra"
+  114  ansible demo -a  "ls -ltra"
+  115  ansible demo -a  "ls ansible -h"
+  116  ansible -h
+  117  clear
+  118  ansible demo -a  "ls /home/ubuntu/"
+  119  ansible demo[1] -a "apt install tree"
+  120  ansible demo[1] -a "apt update -y"
+  121  ansible demo[1] -a "apt install tree"
+  122  clear
+  123  ansible demo -a "which tree"
+  124  clear
+  125  vi /etc/ansible/hosts 
+  126  ansible m1 -a "which tree"
+  127  ansible m1 -a "apt update -y && apt install tree -y"
+  128  ansible all -a "which tree"
+  129  ansible demo -a "touch /home/ubuntu/ramanfile"
+  130  ansible demo -a "ls -l /home/ubuntu/"
+  131  ansible demo -a "uname -a"
+  132  clear
+   
+   
+   
+   
+   ==========================================================
+   
+   modules with adhoc :
+       https://docs.ansible.com/ansible/2.9/modules/modules_by_category.html
+       
+       
+   
+   
+   ansible demo -a  "ls -ltra"
+  134  ansible demo -a  "ls ansible -h"
+  135  ansible -h
+  136  clear
+  137  ansible demo -a  "ls /home/ubuntu/"
+  138  ansible demo[1] -a "apt install tree"
+  139  ansible demo[1] -a "apt update -y"
+  140  ansible demo[1] -a "apt install tree"
+  141  clear
+  142  ansible demo -a "which tree"
+  143  clear
+  144  vi /etc/ansible/hosts 
+  145  ansible m1 -a "which tree"
+  146  ansible m1 -a "apt update -y && apt install tree -y"
+  147  ansible all -a "which tree"
+  148  ansible demo -a "touch /home/ubuntu/ramanfile"
+  149  ansible demo -a "ls -l /home/ubuntu/"
+  150  ansible demo -a "uname -a"
+  151  clear
+  152  history
+  153  cat /etc/ansible/hosts 
+  154  clear
+  155  ls
+  156  pwd
+  157  ansible-doc -l
+  158  clear
+  159  ansible-doc -l | grep ping
+  160  clear
+  161  ansible-doc -v ping
+  162  clear
+  163  ansible all -a "which tree"
+  164  ansible all -a "apt install tree -y"
+  165  clear
+  166  ansible demo -a "apt remove tree-y "
+  167  ansible demo -a "apt remove tree -y "
+  168  ansible demo -a "which tree"
+  169  clear
+  170  ansible-doc -l | grep apt
+  171  clear
+  172  ansible demo -m apt -a "name=tree state=present"
+  173  ansible m1 -m setup 
+  174  clear
+  175  ansible all -m ping
+  176  ansible m1 -m apt -a "name=tree state=absent"
+  177  ansible demo -m apt -a "name=tree state=present"
+  178  clear
+  179  ansible demo -m package -a "name=telnet state=present"
+  180  ansible m1 -m package -a "name=nginx state=present"
+  181  ansible m1 -m service -a "name=nginx enabled=false"
+  182  ansible m1 -m service -a "name=nginx enabled=false state=stopped"
+  183  ansible m1 -m service -a "name=nginx enabled=true state=started"
+  184  ansible demo -m package -a "name=nginx state=absent"
+  185  ansible demo -m user -a "name=khanna comment=\'created via ansible cli\' group=root  shell=/bin/bash "
+  186  ansible demo -m user -a "name=khanna comment=\"created via ansible cli\" group=root  shell=/bin/bash"
+  187  ansible demo -m user -a "name=khanna comment=\"created via ansible cli\" group=root  shell=/bin/bash state=absent"
+  188  clear
+  189  ansible demo -m command -a "cmd=uptime"
+  190  ansible demo -m command -a "uptime"
+  191  ansible demo -m command -a "apt install tree -y"
+  192  ansible demo -m command -a "apt remove tree -y"
+  193  clear
+  
+  ===============================================================================
+   
+   
+   
+   playbook :
+       
+       
+       - hosts: demo
+  user: root
+  connection: ssh
+  gather_facts: true
+  tasks:
+  - name: install nginx on both servers
+    apt:
+      name: nginx
+      state: present
+  - name: create a directory on both servers
+    file:
+      state: directory
+      path: /home/ubuntu/ramantestdir
+   
+   
+   
+   
+   
+==============================================
+
+root@controller:~# cat first.yml 
+- hosts: m1,m2
+  user: root
+  connection: ssh
+  gather_facts: true
+  tasks: 
+  - name: install nginx on both servers
+    apt:
+      name: nginx
+      state: present
+
+- hosts: m1   
+  tasks: 
+  - name: create a directory on both servers
+    file:
+      state: directory
+      path: /home/ubuntu/ramantestdir     
+      
+      
+      
+======================================
+
+
+root@controller:~# cat first.yml 
+- hosts: m1,m2
+  user: root
+  connection: ssh
+  gather_facts: true
+  tasks: 
+  - name: install nginx on both servers
+    apt:
+      name: nginx
+      state: present
+
+- hosts: m1   
+  tasks: 
+  - name: create a directory on both servers
+    file:
+      state: directory
+      path: /home/ubuntu/khannadir 
+      
+      
+      =================================================
+      
+      note : foir underatandimg : below :
+          
+          
+          root@controller:~# cat first.yml 
+- hosts: demo
+  user: ubuntu
+  become: yes
+  become_user: root
+  connection: ssh
+  gather_facts: true
+  tasks: 
+  - name: install nginx on both servers
+    apt:
+      name: nginx
+      state: present 
+  - name: create a directory on both servers
+    file:
+      state: directory
+      path: /root/ramantestdir 
+      
+      
+      
+      
+      ==============================================================
+      
+      
+      
+      Privilege Escalation Options:
+  control how and which user you become as on target hosts
+
+  --become-method BECOME_METHOD
+                        privilege escalation method to use (default=sudo), use `ansible-doc -t become -l` to list valid choices.
+  --become-user BECOME_USER
+                        run operations as this user (default=root)
+  -b, --become          run operations with become (does not imply password prompting)
+
+
+
+-u remote user : 
+
+ -b >> sudo 
+
+
+root , standard user (raman) , previleged user (ubuntu, raman)
+
+
+ansible demo -m apt -a" mkdir /etc/configapp " -u ubuntu --become-user raman -b
+      
+      
+      
+      
+      ================================================================
+      
+      standard user :
+          
+   -- created a user raman on all the nodes ...
+   
+   
+   oot@m1:~# useradd raman
+root@m1:~# passwd raman
+New password: 
+Retype new password: 
+passwd: password updated successfully
+
+
+-----
+
+trying with ubuntu user :
+
+root@controller:~# cat first.yml 
+- hosts: demo
+  user: ubuntu
+  become: yes
+  become_user: root
+  connection: ssh
+  gather_facts: true
+  tasks: 
+  - name: install nginx on both servers
+    apt:
+      name: nginx
+      state: present 
+  - name: create a directory on both servers
+    file:
+      state: directory
+      path: /root/ramantestdir
+      
+      
+      --- on all nodes , rested the passwd of ubuntu using 
+      passwd ubuntu
+      
+      ansible-playbook first.yaml -k
+      
+      
+      
+      ===============================
+      
+      now fixing for our raman user :
+      
+root@controller:~# cat first.yml 
+- hosts: demo
+  user: raman
+  #become: yes
+  #become_user: root
+  connection: ssh
+  gather_facts: true
+  tasks: 
+  - name: install nginx on both servers
+    apt:
+      name: nginx
+      state: absent
+
+      
+      
+      
+---- add raman user on managed nodes in the sudoers file :
+    
+    vi /etc/sudoers
+    
+    # User privilege specification
+root    ALL=(ALL:ALL) ALL
+raman   ALL=(ALL)     NOPASSWD: ALL  
+
+
+
+
+      ansible-playbook first.yaml -k
+
+===================================================================================
+
+
+syntax check , dry run............
+    
+
+root@controller:~# cat first.yml 
+- hosts: demo
+# user
+  become: yes
+  connection: ssh
+  tasks:
+  - name: Install nginx on server
+    action: apt name=nginx state=present
+  - name: add file
+    action: file path=/opt state=directory
+  - name: Group Creation
+    group:
+      name: grp1
+      gid:  5555
+  - name: Another Group Creation
+    group: 
+      name: grp2 
+      gid: 5656
+
+
+[root@ansible]#ansible-playbook --syntax-check user.yml
+[root@ansible]#ansible-playbook --check user.yml
+[root@ansible]#ansible-playbook user.yml
+[root@ansible]#ansible-playbook user.yml --step
+
+
+
+-----------------------------------------------------------------------------------
+
+
+passwrdless auth for standard user raman :
+    
+    note : for creation of raman user  use adduser command ...
+    
+    -- history : controller :
+        
+        raman@controller:~$ history
+    1  pwd
+    2  ssh-keygen -t rsa
+    3  ls -a
+    4  cd .ssh/
+    5  ls
+    6  cat id_rsa
+    7  clear
+    8  cat id_rsa.pub 
+    9  ssh-copy-id raman@172.31.25.29
+   10  ssh-copy-id raman@172.31.24.46
+   11  ssh raman@172.31.25.29
+   12  pwd
+   13  exit
+   14  ls
+   15  cat first.yml 
+   16  ansible-playbook first.yml --check
+   17  ansible-playbook first.yml
+   18  clear
+   19  history
+   
+
+
+raman@controller:~$ cat first.yml 
+- hosts: demo
+  user: raman
+  become: yes
+  connection: ssh
+  tasks:
+  - name: Install nginx on server
+    action: apt name=nginx state=present
+  - name: add file
+    action: file path=/opt state=touch
+  - name: Group Creation
+    group:
+      name: grp1
+      gid:  5555
+      state: present
+  - name: Another Group Creation
+    group: 
+      name: grp2 
+      gid: 5656
+      state: present
+
+
+
+=============================================
+```
