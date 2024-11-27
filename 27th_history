@@ -1,0 +1,431 @@
+```
+
+
+playbooks :
+    
+    •Create a Playbook for User and Group Creation with user name "usertest", shell bash, userid 6666 and pass the comments as "my first user". Group details will be name "grouptest" and group id 7777.
+•
+•Create a Playbook for files and directories:
+create a directory with root ownership; inside this directory, create one file with “test” with ownership of usertest (the user we have created in 1st example). Copy some content into the newly created file.
+    
+    
+    
+    
+root@controller:~# cat first.yml 
+- hosts: demo
+  tasks:
+  - name: Group Creation
+    group:
+      name: grouptest
+      gid:  7777
+      state: present
+  - name: user Creation
+    user: 
+      name: usertest 
+      shell: /bin/bash
+      uid: 6666
+      state: present
+  - name: create a directory
+    file:
+      path: /tmp/testdir
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+  - name: create a file and copy content
+    copy:
+      content: | 
+        This is some content of praticse .
+      dest: /tmp/testdir/test
+      owner: usertest
+      group: grouptest
+      mode: 0644
+      
+      
+      
+      
+      
+      
+      =========================================
+    
+
+handlers :
+
+
+
+root@controller:~# cat first.yml 
+- hosts: demo
+  tasks:
+  - name: ntp os package installation
+    package:
+      name: ntp
+      state: present
+  - name: ntp file configuration
+    file: 
+      path: /etc/ntp.conf 
+      state: touch
+  - name: to start the ntp service
+    service: 
+      name: ntp 
+      state: started 
+      enabled: yes   
+
+
+
+
+---------- now to fix it with handlers :
+    
+    
+
+root@controller:~# cat first.yml 
+- hosts: demo
+  tasks:
+  - name: ntp os package installation
+    package:
+      name: ntp
+      state: present
+  - name: ntp file configuration
+    copy: 
+      src: ntp.conf 
+      dest: /etc/ntp.conf
+    notify: 
+    - lumen   
+  handlers: 
+  - name: lumen
+    service: 
+      name: ntp 
+      state: restarted 
+      enabled: yes    
+      
+      
+      ================================================
+
+
+
+Variables :
+    
+    
+    root@controller:~# cat sec.yaml 
+- hosts: demo
+  vars: 
+    pk: nginx
+  tasks:
+  - name: installing {{ pk }}  pakage
+    apt:
+      name: '{{ pk  }}'
+      state: present 
+      
+      
+      
+
+----------------------------------------------------------------------------------------------------------
+
+root@controller:~# cat sec.yaml 
+- hosts: demo
+  vars: 
+    pk: nginx
+    user1: raman1
+    uid1: 9876
+    user2: raman2
+    uid2: 8765
+    test: absent
+  tasks:
+  - name: Installing {{ pk }} package
+    ansible.builtin.apt:
+      name: "{{ pk }}"
+      state: "{{ test }}"
+
+  - name: Creating a user {{ user1 }}
+    ansible.builtin.user: 
+      name: "{{ user1 }}"
+      uid: "{{ uid1 }}"
+      state: "{{ test }}"
+
+  - name: Creating a user {{ user2 }}
+    ansible.builtin.user: 
+      name: "{{ user2 }}"
+      uid: "{{ uid2 }}"
+      state: "{{ test }}"
+      
+      
+      
+      -------------------------------------------------------------------------------------------
+
+
+on the fly :
+    
+    
+    ansible-playbook sec.yaml -e user2="khanna" --check
+  438  ansible-playbook sec.yaml -e user2="khanna" 
+  439  ansible-playbook sec.yaml -e user2="khanna" -h
+  440  clear
+  441  cat sec.yaml 
+  442  ansible-playbook sec.yaml -e user2="khanna" -e user1="khanna1"
+  443  ansible-playbook sec.yaml -e test="absent"
+  
+  
+  
+  ---------------------------------------------------------------------------------------------------------------------
+  
+  
+  root@controller:~# cat third.yml 
+- name: "Deploy {{ pkgname }} webserver"
+  hosts: m1
+  become: yes
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: Update apt package index
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Installing {{ pkgname }} packages
+      ansible.builtin.apt:
+        name: "{{ pkgname }}"
+        state: "{{ rk1 }}"
+    - name: Changing Listening port to 81
+      lineinfile:
+        path: /etc/apache2/ports.conf
+        regexp: "^Listen 80"
+        line: Listen 81
+      notify: 
+      - hand    
+    - name: Changing default site to listen on port 81
+      ansible.builtin.lineinfile:
+        path: /etc/apache2/sites-available/000-default.conf
+        regexp: '^<VirtualHost \*:80>'
+        line: "<VirtualHost *:81>"
+      notify:
+      - hand    
+    - name: Configuring Apache configuration files
+      copy:
+        dest: /var/www/html/index.html
+        content: "<h1>This is a demo from Raman Khanna!</h1>"
+      notify:
+      - hand    
+  handlers:
+  - name: hand
+    service:
+      name: apache2
+      enabled: yes
+      state: restarted
+      
+      
+      
+      
+root@controller:~# cat vars.yml 
+pkgname: apache2
+rk1: present
+      
+      
+      
+      ==================================================================
+  
+host_vars & group_vars :
+    
+    
+    root@controller:~# ls
+first.yml  group_vars  host_vars  index.html  ntp.conf  sec.yaml  snap  third.yml  vars.yml
+root@controller:~# tree
+.
+├── first.yml
+├── group_vars
+│   └── demo
+├── host_vars
+│   ├── m1
+│   └── m2
+├── index.html
+├── ntp.conf
+├── sec.yaml
+├── snap
+│   └── amazon-ssm-agent
+│       ├── 7993
+│       ├── common
+│       └── current -> 7993
+├── third.yml
+└── vars.yml
+
+8 directories, 9 files
+
+
+
+root@controller:~# cat third.yml 
+- name: "Deploy {{ pkgname }} webserver"
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update apt package index
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Installing {{ pkgname }} packages
+      ansible.builtin.apt:
+        name: "{{ pkgname }}"
+        state: "{{ rk1 }}"
+    - name: Changing Listening port to 81
+      lineinfile:
+        path: /etc/apache2/ports.conf
+        regexp: "^Listen 80"
+        line: Listen 81
+      notify: 
+      - hand    
+    - name: Changing default site to listen on port 81
+      ansible.builtin.lineinfile:
+        path: /etc/apache2/sites-available/000-default.conf
+        regexp: '^<VirtualHost \*:80>'
+        line: "<VirtualHost *:81>"
+      notify:
+      - hand    
+    - name: Configuring Apache configuration files
+      copy:
+        dest: /var/www/html/index.html
+        content: "<h1>This is a demo from Raman Khanna!</h1>"
+    - name: Configure hostname and IP in webpage
+      template:
+        src: index.html
+        dest: /var/www/html/index.html
+      notify:
+      - hand    
+  handlers:
+  - name: hand
+    service:
+      name: apache2
+      enabled: yes
+      state: restarted
+root@controller:~# cat group_vars/demo 
+pkgname: apache2
+
+web_content: |
+  <h1>This is a demo for Apache Webserver!</h1>
+  <p>Hostname: {{ ansible_hostname }}</p>
+  <p>IP Address: {{ ansible_default_ipv4.address }}</p>
+
+rk1: present
+root@controller:~# cat host_vars/m1 
+ansible_user: root
+root@controller:~# cat host_vars/m2
+ansible_user: raman
+root@controller:~# cat index.html 
+{{ web_content }}
+
+
+
+history :
+    
+    ansible m2 -m shell -a "whoami;id"
+  555  ansible m1 -m shell -a "whoami;id"
+  
+  
+  -------------------------------------------------------------------------
+
+
+Loops :
+    
+    
+    root@controller:~# cat loops2.yml 
+- name: Install packages on Ubuntu
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Install packages
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - php
+        - gcc
+        - talk
+        - vim
+        - apache2
+          # when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "23"
+      when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "24" 
+      
+      -------------------------------------------------------------
+      
+root@controller:~# cat loop1.yml 
+---
+- hosts: m1
+  tasks:
+    - name: Create multiple users with loop
+      user:
+        name: "{{ item }}"
+        state: present
+        shell: /bin/bash
+      loop:
+        - gagan1
+        - gagan2
+        - gagan3
+#loop: ["gagan1","gagan2","gagan3"]          
+
+    - name: Second task for loop with conditions
+      command: echo {{ item }}
+      loop: [ 1,3,5,7,8,9 ]
+      when: item < 5
+
+
+
+--------------------------------------------------
+
+root@controller:~# cat loops2.yml 
+- name: Install packages on Ubuntu
+  hosts: all
+  become: true
+  gather_facts: true
+  vars: 
+    rk1: present
+    users:
+      - name: ramank
+        uid: 9876
+      - name: rakeshk
+        uid: 8796
+      - name: ravik
+        uid: 9877
+    pkgs:
+      - php
+      - gcc
+      - talk
+      - vim
+      - apache2      
+  tasks:
+    - name: create users
+      user:
+        name: "{{ item.name }}"
+        uid: "{{ item.uid }}"
+        state: "{{ rk1 }}"
+      loop: "{{ users }}"
+    - name: Install packages
+      apt:
+        name: "{{ item }}"
+        state: "{{ rk1 }}"
+        update_cache: yes
+      loop: "{{ pkgs }}"
+          # when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "23"
+      when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version == "24" 
+      
+      
+      
+      ================================================================================
+
+
+Ansible Ignore Errors :
+
+[root]# cat ignore_error.yaml
+---
+- name: Ignore Error Playbook
+  hosts: all
+  tasks:
+    - name: This will not be counted as failure
+      command: /bin/date12
+      ignore_errors: yes
+
+    - name: Second task
+      Service: name=ntpd state=restarted
+      
+      
+      
+============================================================
+
+```
