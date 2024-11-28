@@ -1,0 +1,632 @@
+```
+
+===============================================================================================
+
+Register , debug error handling , conditions :
+    
+    
+
+root@controller:~# cat fourth.yml 
+---
+- name: This is my First Debug Play
+  hosts: all
+  tasks:
+    - name: Testing Ansible Facts {{ ansible_hostname }}
+      debug: msg="Host {{ ansible_hostname }} is having IP address {{ ansible_all_ipv4_addresses }}"
+    - debug:
+        msg: First task to Print debug message
+
+    - debug:
+        msg: "System {{ inventory_hostname }} has uuid {{ ansible_product_uuid }}"     
+    - name: Talk package uninstallation
+      apt: name=talk state=absent
+      register: outp    
+    - name: Running debugger to show the output
+      debug:
+        var: outp 
+    - name: install ntp
+      apt:
+        name: ntp
+        state: present
+      register: ntp_out
+
+    - name: printing complete output
+      debug:
+        # var: ntp_out
+        var: ntp_out
+        #var: ntp_out.stdout
+        
+        
+        
+        --------------------------------------------------
+
+
+root@controller:~# cat fourth.yml 
+---
+- name: This is my First Debug Play
+  hosts: all
+  tasks:
+    - name: Testing Ansible Facts {{ ansible_hostname }}
+      debug: msg="Host {{ ansible_hostname }} is having IP address {{ ansible_all_ipv4_addresses }}"
+    - debug:
+        msg: First task to Print debug message
+
+    - debug:
+        msg: "System {{ inventory_hostname }} has uuid {{ ansible_product_uuid }}"     
+    - name: Talk package uninstallation
+      apt: name=talk state=absent
+      register: outp    
+    - name: Running debugger to show the output
+      debug:
+        var: outp
+    - name: Task 1 - Run command "/dev/null"
+      command: /dev/null
+      #command: ls
+      register: task1_result
+      ignore_errors: yes
+    - name: Running debugger to show the output
+      debug:
+        var: task1_result      
+    - name: install ntp
+      apt:
+        name: ntp
+        state: present
+      register: ntp_out
+
+    - name: printing complete output
+      debug:
+        # var: ntp_out
+        var: ntp_out.changed
+        #var: ntp_out.stdout
+    - name: secnd last task - Run only if Task 1 fails 
+      debug:
+        msg: This task runs only if Task 1 fails 
+          #when: task1_result.failed 
+      when: task1_result.rc != 0
+    - name: Running debugger to show the output
+      debug:
+        var: task1_result.rc    
+    - name: Final task - Run only if Task 1 succeeds
+      debug:
+        msg: This task runs only if Task 1 succeeds
+          #when: task1_result.failed == false
+      when: task1_result.rc == 0    
+
+
+
+----------------------------------------------------------------------------------------
+
+
+[root@gagan-master ~]# cat first.yaml
+---
+- name: play1 for creating user on gagan-client machine
+  hosts: gagan-client
+
+  tasks:
+    - name: description for task1 for creating user
+      user: name=gagandeep state=present
+      when: ansible_distribution == "CentOS" and ansible_distribution_version == "7.9"
+      register: user_out
+
+    - name: false task
+      debug:
+        #msg="Print this msg only if user creation is successfull"
+        var: user_out
+      ignore_errors: true
+      when: user_out.state == "present"
+
+    - name: creating a file on next machine
+      file:
+        path: /tmp/gds
+        state: touch
+        mode: 1600
+      when: ansible_distribution == "Redhat"
+      
+      
+      ========================================================================
+
+
+Vault :
+    
+    
+    ansible-vault -h
+  738  clear
+  739  ls
+  740  ansible-playbook fourth.yml 
+  741  cat fourth.yml 
+  742  ansible-vault -h
+  743  ls
+  744  cat fourth.yml 
+  745  ansible-vault encrypt fourth.yml 
+  746  cat fourth.yml 
+  747  ansible-playbook fourth.yml 
+  748  ansible-playbook fourth.yml -h
+  749  ansible-playbook fourth.yml --ask-vault-pass
+  750  cat fourth.yml 
+  751  ansible-vault -h
+  752  ansible-playbook decrypt fourth.yml
+  753  ansible-vault decrypt fourth.yml
+  754  cat fourth.yml 
+  755  ansible-vault encrypt fourth.yml
+  756  cat fourth.yml 
+  757  ansible-vault -h
+  758  ansible-vault view fourth.yml 
+ansible-vault -h
+  801  ansible-vault edit fourth.yml 
+  802  cat fourth.yml 
+  803  ansible-vault view fourth.yml 
+ ansible-vault edit fourth.yml 
+  815  ansible-playbook fourth.yml -J
+  816  ansible-playbook fourth.yml -i inv -J
+  817  clear
+  818  ls
+  819  ansible-vault decrypt fourth.yml 
+  820  ansible-vault encrypt --vault-id passInv@prompt inv
+  821  cat inv 
+  822  ansible-vault encrypt --vault-id passpb@prompt fourth.yml 
+  823  ansible-playbook -i inv fourth.yml 
+  824  ansible-playbook -i inv fourth.yml -J
+  825  ansible-playbook -i inv fourth.yml -h
+  826  ansible-playbook -i inv fourth.yml --vault-id passInv@prompt --vault-id passpb@prompt
+  827  ansible-vault view fourth.yml -J
+  
+  ===========================================================
+  
+  
+  
+  
+  root@controller:~# cat inv
+[demo1]
+m1 ansible_host=172.31.25.29 ansible_user="raman" ansible_password="raman"
+#m3
+#m4
+
+
+#[demo1:vars]
+#
+
+[demo2]
+m2 ansible_host=172.31.24.46 ansible_user="raman2" ansible_password="khanna"
+#m5
+#m6
+#m7
+  
+  
+  
+  
+  
+  root@controller:~# ansible all -m ping -i inv
+m2 | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+m1 | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+
+---------------
+
+ansible-vault -h
+  899  vi vault_secrets.yaml
+  900  ls
+  901  cat inv
+  902  ansible all -m ping -i inv
+  903  ls
+  904  ansible-vault -h
+  905  ansible-vault encrypt_string 'raman' --name 'encrypted_m1_password' >> vault_secrets.yaml
+  906  ls
+  907  cat vault_secrets.yaml 
+  910  cat vault_secrets.yaml 
+  911  ansible-vault encrypt_string 'khanna' --name 'encrypted_m2_password' >> vault_secrets.yaml
+  912  cat vault_secrets.yaml 
+  
+  ---------------------------------------------------------
+  
+  
+  
+root@controller:~# cat inv 
+[demo1]
+m1 ansible_host=172.31.25.29 ansible_user="raman" ansible_password="{{ encrypted_m1_password }}"
+#m3
+#m4
+
+
+#[demo1:vars]
+#
+
+[demo2]
+m2 ansible_host=172.31.24.46 ansible_user="raman2" ansible_password="{{ encrypted_m2_password }}"
+#m5
+#m6
+#m7
+
+
+-----------------------------------------------------------------------------------
+
+
+
+root@controller:~# cat fourth.yml 
+---
+- name: This is my First Debug Play
+  hosts: all
+  vars_files:
+  - vault_secrets.yaml
+  tasks:
+    - name: Testing Ansible Facts {{ ansible_hostname }}
+      debug: msg="Host {{ ansible_hostname }} is having IP address {{ ansible_all_ipv4_addresses }}"
+    - debug:
+        msg: First task to Print debug message
+    - debug:
+        msg: "System {{ inventory_hostname }} has uuid {{ ansible_product_uuid }}"     
+    - name: Talk package uninstallation
+      apt: name=talk state=absent
+      register: outp    
+    - name: Running debugger to show the output
+      debug:
+        var: outp
+    - name: Task 1 - Run command "/dev/null"
+      command: /dev/null
+      #command: ls
+      register: task1_result
+      ignore_errors: yes
+    - name: Running debugger to show the output
+      debug:
+        var: task1_result      
+    - name: install ntp
+      apt:
+        name: ntp
+        state: present
+      register: ntp_out
+
+    - name: printing complete output
+      debug:
+        # var: ntp_out
+        var: ntp_out.changed
+        #var: ntp_out.stdout
+    - name: secnd last task - Run only if Task 1 fails 
+      debug:
+        msg: This task runs only if Task 1 fails 
+          #when: task1_result.failed 
+      when: task1_result.rc != 0
+    - name: Running debugger to show the output
+      debug:
+        var: task1_result.rc    
+    - name: Final task - Run only if Task 1 succeeds
+      debug:
+        msg: This task runs only if Task 1 succeeds
+          #when: task1_result.failed == false
+      when: task1_result.rc == 0    
+    - name: show encrypted m1 password
+      debug:
+        var: encrypted_m1_password
+    - name: show encrypted m2 password
+      debug:
+        var: encrypted_m2_password      
+        
+        
+        
+        
+        
+        
+         ansible-playbook -i inv fourth.yml --ask-vault-pass
+        
+     -----------------------------------------------
+     
+     echo 'lumen' >> .vault_password.txt
+  934  ls -a
+  935  ls -ltr
+  936  cat .vault_password.txt 
+  937  ls -ltra
+  938  chmod 600 .vault_password.txt 
+  939  ls
+  940  ansible-playbook -i inv fourth.yml -h
+  941  ansible-playbook -i inv fourth.yml --vault-password-file .vault_password.txt 
+  
+  
+  ---------------------------------------------------------
+  
+  
+  root@controller:~# ansible all -m ping -i inv --ask-vault-pass --extra-vars "@vault_secrets.yaml"
+Vault password: 
+m1 | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+m2 | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+
+
+        
+====================================================================================
+
+
+Roles :
+    
+    
+     ansible-galaxy init myrole
+  965  ls
+  966  cd myrole/
+  967  tree
+  968  cat thir
+  969  cd ..
+  970  ls
+  971  cat fourth.yml 
+  972  cat third.yml 
+  973  cat sec.yaml 
+  974  clear
+  975  cat third.yml 
+  976  ls
+  977  cd myrole/
+  978  ls
+  979  cd tasks/
+  980  ls
+  981  vi main.yml 
+  982  cd ..
+  983  ls
+  984  cd defaults/
+  985  ls
+  986  vi main.yml 
+  987  cd ..
+  988  ls
+  989  clear
+  990  tree
+  991  vi pb.yml
+  992  ansible-playbook pb.yml --check
+  993  cd /etc/ansible/roles/
+  994  ls
+  995  cd ~
+  996  ls
+  997  cd myrole/
+  998  ls
+  999  mv pb.yml /root/
+ 1000  ls
+ 1001  cd ..
+ 1002  ls
+ 1003  cat pb.yml 
+ 1004  ansible-playbook pb.yml --check
+ 1005  vi inv
+ 1006  ansible-playbook pb.yml --check
+ 1007  passwd root
+ 1008* 
+ 1009  ls -a
+ 1010  ls
+ 1011  cat pb.yml 
+ 1012  ansible-playbook pb.yml -i inv --check
+ 1013  cat inv
+ 1014  cat pb.yml 
+ 1015  ls
+ 1016  ansible-playbook pb.yml --check
+ 1017  ansible-playbook pb.yml --check -i inv
+ 1018  ls
+ 1019  vi myrole/vars/main.yml 
+ 1020  ansible-playbook pb.yml --check -i inv
+ 1021  ansible-playbook pb.yml --check -i inv -e user=rakeshkhatri
+ 
+ 
+ root@controller:~# cat pb.yml 
+---
+- name: Testing role
+  hosts: m1
+# Define roles here
+  roles:
+    - myrole
+    
+    
+    
+    
+    
+    root@controller:~# cd myrole/
+root@controller:~/myrole# tree
+.
+├── README.md
+├── defaults
+│   └── main.yml
+├── files
+├── handlers
+│   └── main.yml
+├── meta
+│   └── main.yml
+├── tasks
+│   └── main.yml
+├── templates
+├── tests
+│   ├── inventory
+│   └── test.yml
+└── vars
+    └── main.yml
+
+9 directories, 8 files
+
+
+================================
+
+
+ansible-galaxy init ntp-role
+
+
+
+root@controller:~/ntp-role# tree
+.
+├── README.md
+├── defaults
+│   └── main.yml
+├── files
+│   └── ntp.conf
+├── handlers
+│   └── main.yml
+├── meta
+│   └── main.yml
+├── tasks
+│   └── main.yml
+├── templates
+├── tests
+│   ├── inventory
+│   └── test.yml
+└── vars
+    └── main.yml
+
+9 directories, 9 files
+root@controller:~/ntp-role# cat defaults/main.yml 
+---
+# defaults file for ntp-role
+username: khannaraman
+uid: 1020
+root@controller:~/ntp-role# cat handlers/main.yml 
+---
+# handlers file for ntp-role
+- name: Restart NTP Service
+  service:
+    name: ntpd
+    state: restarted
+root@controller:~/ntp-role# cat tasks/main.yml 
+---
+# tasks file for ntp-role
+- name: Create user
+  user:
+    name: "{{ username }}"
+    uid: "{{ uid }}"
+  become: true
+
+- name: Install NTP package
+  package:
+    name: ntp
+    state: present
+
+- name: Copy NTP configuration file
+  copy:
+    src: ntp.conf
+    dest: /etc/ntp.conf
+  notify: Restart NTP Service
+
+- name: Start NTP service
+  service:
+    name: ntpd
+    state: started
+    enabled: true
+
+
+
+
+
+
+
+root@controller:~# cat pb.yml 
+---
+- name: Testing role
+  hosts: demo
+# Define roles here
+  roles:
+    - myrole
+    - ntp-role
+
+-----------------------------------------------------------------------------------------
+
+to include multiple roles in ur any xyz playbbok :
+
+
+root@controller:~# cat fourth.yml 
+- name: This is my First Debug Play
+  hosts: all
+  tasks:
+    - name: Testing Ansible Facts {{ ansible_hostname }}
+      debug: msg="Host {{ ansible_hostname }} is having IP address {{ ansible_all_ipv4_addresses }}"
+    - debug:
+        msg: First task to Print debug message
+    - debug:
+        msg: "System {{ inventory_hostname }} has uuid {{ ansible_product_uuid }}"     
+    - name: Talk package uninstallation
+      apt: name=talk state=absent
+      register: outp    
+    - name: Running debugger to show the output
+      debug:
+        var: outp
+    - name: Execute ntp-role
+      include_role:
+        name: ntp-role
+        role: /root/ntp-role        (# else u can mention path in cfg file as roles_path tab there or above under hosts tab like shown  )
+      ignore_errors: true
+      register: ntp_result      
+    - name: Task 1 - Run command "/dev/null"
+      command: /dev/null
+      #command: ls
+      register: task1_result
+      ignore_errors: yes
+    - name: Running debugger to show the output
+      debug:
+        var: task1_result      
+    - name: secnd last task - Run only if Task 1 fails 
+      debug:
+        msg: This task runs only if Task 1 fails 
+          #when: task1_result.failed 
+      when: task1_result.rc != 0
+    - name: Running debugger to show the output
+      debug:
+        var: task1_result.rc    
+    - name: Final task - Run only if Task 1 succeeds
+      debug:
+        msg: This task runs only if Task 1 succeeds
+          #when: task1_result.failed == false
+      when: task1_result.rc == 0    
+    - name: Execute ramanrole
+      when: ntp_result is succeeded
+      include_role:
+        name: myrole
+        role: /root/myrole
+        
+        
+        
+        
+        ==============================================
+
+
+upload role :
+    
+    --- create a repo in github : lumen_role_26-30th
+    
+    git clone https://github.com/ramannkhanna2/lumen_role_25-29th.git
+ 1112  ls
+ 1113  cd lumen_role_25-29th/
+ 1114  git remote -v
+ 1115  cd ..
+ 1116  ls
+ 1117  cp ntp-role/* lumen_role_25-29th/
+ 1118  cp -r ntp-role/* lumen_role_25-29th/
+ 1119  cd lumen_role_25-29th/
+ 1120  ls
+ 1121  git status
+ 1122  git config --global user.name "raman"
+ 1123  git config --global user.email "raman@email"
+ 1124  git add .
+ 1125  git commit -m "adding a role content"
+ 1126  git status
+ 1127  git push origin main
+ 
+     -- created a developer token(pat) , settings >> developer seeting >> pat 
+     
+     ------------------------------------
+     
+    
+    
+    ansible galaxy >> import role >>
+    
+    
+    ansible-galaxy search lumen_role_25-29th
+ 1131  ls
+ 1132  cd ..
+ 1133  ls
+ 1134  rm -rf ntp-role/ lumen_role_25-29th/
+ 1135  ls
+ 1136  ansible-galaxy role install ramannkhanna2.lumen_role_25-29th
+ 
+ 
+ 
+ =========================================================================
+    
+    
+
+    ```
