@@ -1,0 +1,571 @@
+```
+
+
+ =========================================================================
+    
+    https://docs.ansible.com/ansible/2.9/modules/list_of_windows_modules.html
+    
+windows server creation :
+    
+ami : windows 2022 base without core
+
+inst type : t2.medium
+
+reuse sg and keypair
+
+--instance created
+
+--- i will do rdp ...and connect
+
+    
+===================================================
+
+https://docs.ansible.com/ansible/latest/os_guide/windows_winrm.html
+
+
+-- open all traffic :
+
+
+---- u updated ur win dns address at two places ...
+
+script :
+
+# Enable PowerShell remoting
+Enable-PSRemoting -Force
+
+# Set WinRM service startup type to automatic
+Set-Service WinRM -StartupType 'Automatic'
+
+# Configure WinRM Service
+Set-Item -Path WSMan:\localhost\Service\Auth\Certificate -Value $true
+Set-Item -Path 'WSMan:\localhost\Service\AllowUnencrypted' -Value $true
+Set-Item -Path 'WSMan:\localhost\Service\Auth\Basic' -Value $true
+Set-Item -Path 'WSMan:\localhost\Service\Auth\CredSSP' -Value $true
+
+
+#To delete an existing WinRM listener with Address=* and Transport=HTTPS, you can use the following command:
+winrm delete winrm/config/Listener?Address=*+Transport=HTTPS
+
+
+# Create a self-signed certificate and set up an HTTPS listener
+$cert = New-SelfSignedCertificate -DnsName ec2-18-217-211-150.us-east-2.compute.amazonaws.com -CertStoreLocation "cert:\LocalMachine\My"
+
+winrm create winrm/config/Listener?Address=*+Transport=HTTPS "@{Hostname=`"ec2-18-217-211-150.us-east-2.compute.amazonaws.com`";CertificateThumbprint=`"$($cert.Thumbprint)`"}"
+
+
+# Create a firewall rule to allow WinRM HTTPS inbound
+New-NetFirewallRule -DisplayName "Allow WinRM HTTPS" -Direction Inbound -LocalPort 5986 -Protocol TCP -Action Allow
+
+# Configure TrustedHosts
+Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
+
+# Set LocalAccountTokenFilterPolicy
+New-ItemProperty -Name LocalAccountTokenFilterPolicy -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System -PropertyType DWord -Value 1 -Force
+
+# Set Execution Policy to Unrestricted
+Set-ExecutionPolicy Unrestricted -Force
+
+# Restart the WinRM service
+Restart-Service WinRM
+
+# List the WinRM listeners
+winrm enumerate winrm/config/Listener
+
+
+
+
+    
+    
+    
+    
+    
+---- execute the script over powershell
+
+------------------------------------------------------------------------------------------------
+
+
+root@controller:~# cat inv
+[linux]
+m1 ansible_host=172.31.25.29 ansible_user="root" ansible_password="raman"
+m2 ansible_host=172.31.24.46 ansible_user="root" ansible_password="raman"
+
+[win]
+18.217.211.150 
+
+
+[win:vars]
+ansible_user=Administrator
+ansible_password='uDC!1SYPbk$mjr?rO?X9Ev$wX4!9TJ.5'
+ansible_connection=winrm
+ansible_winrm_transport=basic
+ansible_winrm_server_cert_validation=ignore
+
+
+
+
+
+root@controller:~# ansible win -m win_ping -i inv
+18.217.211.150 | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+
+=====================================================
+
+
+
+
+root@controller:~# cat win1.yml 
+---
+- name: to install a package 
+  hosts: all
+  gather_facts: yes
+  tasks:
+  - name: install IIS 
+    win_feature: 
+      name: 
+      - Web-Server
+      - Web-Common-Http
+      state: present
+    when:  ansible_os_family ==  "Windows"     
+    
+    
+    ===============================================
+    
+    
+    root@controller:~# cat win1.yml 
+---
+- name: to install a package 
+  hosts: all
+  gather_facts: yes
+  tasks:
+  - name: windows Run
+    block:  
+    - name: install IIS 
+      win_feature: 
+        name: 
+        - Web-Server
+        - Web-Common-Http
+        state: present    
+    - name: default-source-object
+      win_copy:
+        dest: "C:\\inetpub\\wwwroot\\index.html"   
+        content: "Welcome to the windows instance of Raman Khanna"
+    when: ansible_os_family ==  "Windows"     
+    
+    
+    ===========================================
+    
+
+root@controller:~# cat win1.yml 
+---
+- name: to install a package 
+  hosts: all
+  gather_facts: yes
+  vars:
+    test: present
+  tasks:
+  - name: windows Run
+    block:  
+    - name: install IIS 
+      win_feature: 
+        name: 
+        - Web-Server
+        - Web-Common-Http
+        state: "{{ test }}"    
+      register: result_win
+    - name: print windows output
+      debug:
+        var: result_win
+    - name: default-source-object
+      win_copy:
+        dest: "C:\\inetpub\\wwwroot\\index.html"   
+        content: "Welcome to the windows instance of Raman Khanna"
+    when: ansible_os_family ==  "Windows"     
+  - name: block run for linux
+    block:
+    - name: installing talk 
+      apt: 
+        name: talk
+        state: "{{ test }}"
+      register: result_linux
+    - name: print linux output
+      debug:
+        var: result_linux
+    when: ansible_os_family == "Debian"   
+    
+    
+    ============================================
+    
+    
+    
+    root@controller:~# cat win2.yaml 
+---
+- name: Installing Apache MSI
+  hosts: win
+  tasks:
+    - name: create ansible directory
+      win_file:
+        path: C:\Ansible
+        state: directory
+    - name: Download the Apache installer
+      win_get_url:
+        url: https://archive.apache.org/dist/httpd/binaries/win32/httpd-2.2.25-win32-x86-no_ssl.msi
+        dest: C:\Ansible\httpd-2.2.25-win32-x86-no_ssl.msi
+    - name: Install MSI
+      win_package:
+        path: C:\Ansible\httpd-2.2.25-win32-x86-no_ssl.msi
+        state: present
+        
+        
+        =======================================================
+        
+
+
+root@controller:~# cat win2.yaml 
+---
+- name: Installing Apache MSI
+  hosts: win
+  vars:
+    packages:
+    - git
+    - notepadplusplus
+    source: "report.txt"
+    destination: "Desktop/report.txt"  
+  tasks:
+    - name: create ansible directory
+      win_file:
+        path: C:\Ansible
+        state: directory
+    - name: Download the Apache installer
+      win_get_url:
+        url: https://archive.apache.org/dist/httpd/binaries/win32/httpd-2.2.25-win32-x86-no_ssl.msi
+        dest: C:\Ansible\httpd-2.2.25-win32-x86-no_ssl.msi
+    - name: Install MSI
+      win_package:
+        path: C:\Ansible\httpd-2.2.25-win32-x86-no_ssl.msi
+        state: present
+    - name: install packages
+      chocolatey.chocolatey.win_chocolatey:
+        name: "{{ packages }}"
+        state: present      
+    - name: creating win user
+      win_user:
+        name: ansibleuser
+        password: ansible@123456
+        state: present
+        groups:
+        - users     
+    - name: Clear Read-Only Attribute on Disk 1
+      win_shell: |
+        Set-Disk -Number 1 -IsReadOnly $false      
+    - name: Initialize Disk 1
+      community.windows.win_initialize_disk:
+        disk_number: 1
+        style: gpt
+ 
+    - name: Create a partition on Disk 1
+      community.windows.win_partition:
+        disk_number: 1
+        drive_letter: D
+        partition_size: 1gb
+ 
+    - name: Format the partition on Disk 1
+      community.windows.win_format:
+        drive_letter: D
+        file_system: NTFS      
+    - name: Install all critical and security updates
+      ansible.windows.win_updates:
+        category_names:
+          - CriticalUpdates
+          - SecurityUpdates
+        state: installed
+        reboot: false
+        log_path: C:\ansible.txt
+    - name: Copy report.txt
+      ansible.windows.win_copy:
+        src: "{{ source }}"
+        dest: "{{ destination }}" 
+        
+        
+        
+        ===============================================
+        
+        
+        
+        managing win svc using ansible :
+
+https://docs.ansible.com/ansible/latest/collections/ansible/windows/win_service_module.html
+
+
+
+
+
+
+
+--- Managing ssh-keys with ansible :
+
+
+vi sshplay.yml
+
+[root@main ~]# cat sshplay.yml
+---
+- name: file to migrate ssh key
+  hosts: demo
+  become: true
+  tasks:
+  - name: copying pub file on remote ansible server
+    authorized_key:
+      user: root
+      state: present
+      key: "{{lookup('file','/root/.ssh/id_rsa.pub')}}"
+      
+      
+      
+      ==========================================================================
+          
+just for understanding templatong:
+    
+    playbook :
+
+- name: Deploy Nginx configuration
+  hosts: webserver
+  vars_files:
+    - vars/main.yml
+  tasks:
+    - name: Copy Nginx configuration
+      template:
+        src: templates/nginx.conf.j2
+        dest: /etc/nginx/nginx.conf
+      notify:
+        - Restart Nginx
+
+handlers:
+  - name: Restart Nginx
+    service:
+      name: nginx
+      state: restarted
+
+
+template :
+
+nginx.conf.j2):
+jinja
+Copy code
+server {
+    listen {{ port }};
+    server_name {{ domain_name }};
+    
+    location / {
+        proxy_pass http://{{ backend }};
+    }  {{ ansible_hostname }}
+}
+
+
+
+
+inv:
+[prod]
+m1
+m2
+m3
+
+[dev]
+m4
+ m5 
+m6 ,
+m7
+
+
+
+
+group_vars/prod
+
+port: 80
+domain_name: example.com
+backend: 192.168.1.10
+
+
+group_vars/dev
+
+port: 81
+domain_name: raman.example.com
+backend: 192.168.1.11
+
+
+===============================================================
+
+
+Templates :
+    
+    
+    
+    
+    root@controller:~# cat jinja1.yml 
+---
+- name: apache webserver playbook
+  hosts: linux
+  become: true
+  tasks:
+  - name: installaing httpd
+    apt:
+      name: apache2
+      state: latest
+  - name: starting apache2 svc
+    service:
+      name: apache2
+      state: started
+      enabled: true
+  - name: setting apache
+    template:
+      src: /root/index.j2
+      dest: /var/www/html/index.html
+  - name: resstarting svc
+    service:
+      name: apache2
+      state: restarted
+
+root@controller:~# cat index.j2 
+ <html>
+ <center><h1> The apache ebserver is running on {{ ansible_hostname }}</h1>
+ </center>
+ </html>
+ 
+ 
+ ============================================
+ 
+ 
+ 
+ 2nd example :
+
+
+---
+- hosts: all
+  name: motd file on remote servers
+  tasks:
+    - name: Execute a command
+      command: echo 'hello lumen users'
+      register: my_command_output
+
+    - name: Set a fact based on registered variable
+      set_fact:
+        custom_fact: "{{ my_command_output.stdout }}"
+    - name: copying motd file  on remote svrs
+      template: src=/root/raman/motd.j2 dest=/etc/motd
+
+
+[root@main raman]# cat motd.j2
+
+******************* WELCOME 2 {{ ansible_distribution }} server, {{ custom_fact }} *******************
+IP addd of this server is  {{ ansible_default_ipv4.address }}
+The hostname is {{ ansible_fqdn }}
+
+
+
+
+
+
+
+   49  vi motd.j2
+   50  ls
+   51  vi jinja.yml
+   52  ansible demo -m command -a 'cat /etc/motd'
+   53  ansible-playbook motd.j2
+   54  ls
+   55  ansible-playbook jinja.yml
+   56  clear
+   57  ls
+   58  cat ninja.yml
+   59  vi jinja.yml
+   60  ansible-playbook jinja.yml
+   61  ansible demo -m command -a 'cat /etc/motd'
+   62  cat jinja.yml
+   63  vi index.j2
+   64  vi apache.yml
+   65  ansible-playbook apache.yml
+   66  vi apache.yml
+   67  ansible-playbook apache.yml
+   68  vi apache.yml
+   69  ansible-playbook apache.yml
+   70  vi apache.yml
+   71  ansible-playbook apache.yml
+   
+   ====================================================
+
+
+
+
+
+JINJA2 temlate : 3rd example :
+
+
+root@master:~/test/jinja# ls
+inv  motd.j2  site.yml  user_list.j2
+
+
+root@master:~/test/jinja# cat site.yml 
+- name: Using Jinja2
+  hosts: demo
+  become: yes
+  vars:
+    system_admin_email: admin@lab.local
+  # system_admin_phone: '1800 0000 0000'
+    users:
+      - John
+      - Lisa
+      - Raj
+      - Vinod
+      - Gini
+  tasks:
+    - name: Deploy motd
+      template:
+        dest: /etc/motd
+        src: motd.j2
+    - name: Deploy user list
+      template:
+        dest: /tmp/user_list
+        src: user_list.j2
+
+
+
+root@master:~/test/jinja# cat motd.j2 
+Welcome to {{ ansible_facts.hostname }}
+(IP Address: {{ ansible_facts.default_ipv4.address }})
+
+Access is restricted; if you are not authorized to use it 
+please logout from this system
+
+If you have any issues, please contact {{ system_admin_email }}.
+Phone: {{ system_admin_phone | default('1800 1111 2222') }}
+
+-------------------------------------
+This message is configured by Ansible
+-------------------------------------
+
+
+
+
+
+
+
+root@master:~/test/jinja# cat user_list.j2 
+This is the user list deployed from Ansible
+-------------------------------------------
+{# For Statement #}
+{% for i in users %} 
+{{ loop.index }}: {{ i }}
+{% endfor %}
+-------------------------------------------
+This is end of user list.
+
+
+
+
+
+
+*********************************************************************************
+
+
+
+
+```
